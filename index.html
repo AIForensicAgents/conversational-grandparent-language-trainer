@@ -1,0 +1,1048 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Conversational Grandparent Language Trainer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/alpinejs@3.13.3/dist/cdn.min.js" defer></script>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: 'Nunito', sans-serif; }
+        body { background: #FFF8F0; }
+        .chat-bubble-ai {
+            background: linear-gradient(135deg, #E8F5E9 0%, #F1F8E9 100%);
+            border-radius: 20px 20px 20px 4px;
+        }
+        .chat-bubble-user {
+            background: linear-gradient(135deg, #E3F2FD 0%, #BBDEFB 100%);
+            border-radius: 20px 20px 4px 20px;
+        }
+        .scenario-card {
+            transition: all 0.3s ease;
+        }
+        .scenario-card:hover, .scenario-card:active {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+        .pulse-dot {
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 1; }
+        }
+        .fade-in {
+            animation: fadeIn 0.4s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .speed-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 28px; height: 28px;
+            background: #4CAF50;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        .speed-slider::-webkit-slider-runnable-track {
+            height: 8px;
+            background: #C8E6C9;
+            border-radius: 4px;
+        }
+        .progress-ring {
+            transition: stroke-dashoffset 0.5s ease;
+        }
+        .typing-indicator span {
+            display: inline-block;
+            width: 8px; height: 8px;
+            background: #81C784;
+            border-radius: 50%;
+            margin: 0 2px;
+            animation: bounce 1.4s infinite ease-in-out;
+        }
+        .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+        .nav-btn {
+            min-height: 48px;
+            min-width: 48px;
+        }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #C8E6C9; border-radius: 2px; }
+    </style>
+</head>
+<body class="min-h-screen" x-data="app()" x-init="init()">
+
+    <!-- Header -->
+    <header class="bg-gradient-to-r from-green-600 to-green-700 text-white px-4 py-3 shadow-lg sticky top-0 z-50">
+        <div class="max-w-lg mx-auto flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <button x-show="currentView !== 'home'" @click="goHome()" class="nav-btn p-2 rounded-full hover:bg-green-500 transition">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                </button>
+                <div>
+                    <h1 class="text-lg font-extrabold leading-tight">🗣️ GrandSpeak</h1>
+                    <p class="text-xs text-green-100 font-semibold" x-text="subtitleText()"></p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <button @click="currentView = 'progress'" class="nav-btn p-2 rounded-full hover:bg-green-500 transition" title="My Progress">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                </button>
+                <button @click="currentView = 'settings'" class="nav-btn p-2 rounded-full hover:bg-green-500 transition" title="Settings">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-lg mx-auto pb-24">
+
+        <!-- ONBOARDING VIEW -->
+        <div x-show="currentView === 'onboarding'" x-transition class="px-4 py-6">
+            <div class="text-center mb-6 fade-in">
+                <div class="text-6xl mb-3">👴👵</div>
+                <h2 class="text-2xl font-extrabold text-green-800 mb-2">Welcome to GrandSpeak!</h2>
+                <p class="text-gray-600 text-base">Practice conversations for family moments & travel adventures 🌍</p>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-md p-5 mb-4 fade-in">
+                <label class="block text-sm font-bold text-gray-700 mb-2">👤 What's your name?</label>
+                <input x-model="profile.name" type="text" placeholder="e.g., Margaret, Robert..." class="w-full p-3 border-2 border-green-200 rounded-xl text-lg focus:border-green-500 focus:outline-none" />
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-md p-5 mb-4 fade-in">
+                <label class="block text-sm font-bold text-gray-700 mb-2">🌐 Which language are you learning?</label>
+                <select x-model="profile.targetLanguage" class="w-full p-3 border-2 border-green-200 rounded-xl text-lg focus:border-green-500 focus:outline-none bg-white">
+                    <option value="">Choose a language...</option>
+                    <option value="Spanish">🇪🇸 Spanish</option>
+                    <option value="French">🇫🇷 French</option>
+                    <option value="Italian">🇮🇹 Italian</option>
+                    <option value="German">🇩🇪 German</option>
+                    <option value="Portuguese">🇧🇷 Portuguese</option>
+                    <option value="Japanese">🇯🇵 Japanese</option>
+                    <option value="Mandarin">🇨🇳 Mandarin Chinese</option>
+                    <option value="Korean">🇰🇷 Korean</option>
+                    <option value="Hindi">🇮🇳 Hindi</option>
+                    <option value="Arabic">🇸🇦 Arabic</option>
+                </select>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-md p-5 mb-4 fade-in">
+                <label class="block text-sm font-bold text-gray-700 mb-2">📊 Your current level?</label>
+                <div class="grid grid-cols-3 gap-2">
+                    <template x-for="level in ['Beginner', 'Intermediate', 'Advanced']">
+                        <button @click="profile.level = level"
+                                :class="profile.level === level ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-700 border-green-200 hover:border-green-400'"
+                                class="p-3 rounded-xl border-2 font-bold text-sm transition nav-btn" x-text="level">
+                        </button>
+                    </template>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-md p-5 mb-4 fade-in">
+                <label class="block text-sm font-bold text-gray-700 mb-2">💝 Why are you learning?</label>
+                <div class="flex flex-col gap-2">
+                    <template x-for="reason in ['Talk with grandchildren', 'Travel abroad', 'Connect with family heritage', 'Keep my mind sharp', 'Make new friends']">
+                        <button @click="toggleReason(reason)"
+                                :class="profile.reasons.includes(reason) ? 'bg-green-100 border-green-500 text-green-800' : 'bg-white border-gray-200 text-gray-600'"
+                                class="p-3 rounded-xl border-2 text-left font-semibold text-sm transition nav-btn" x-text="reason">
+                        </button>
+                    </template>
+                </div>
+            </div>
+
+            <button @click="completeOnboarding()"
+                    :disabled="!profile.name || !profile.targetLanguage || !profile.level"
+                    :class="(!profile.name || !profile.targetLanguage || !profile.level) ? 'bg-gray-300 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 active:bg-green-800'"
+                    class="w-full py-4 rounded-2xl text-white font-extrabold text-lg shadow-lg transition nav-btn">
+                Let's Start Learning! 🎉
+            </button>
+        </div>
+
+        <!-- HOME VIEW -->
+        <div x-show="currentView === 'home'" x-transition class="px-4 py-4">
+            <!-- Greeting -->
+            <div class="bg-gradient-to-br from-green-50 to-amber-50 rounded-2xl p-5 mb-5 shadow-sm fade-in">
+                <h2 class="text-xl font-extrabold text-green-800 mb-1">
+                    Hello, <span x-text="profile.name || 'Friend'"></span>! 👋
+                </h2>
+                <p class="text-gray-600 text-sm">
+                    Learning <span class="font-bold text-green-700" x-text="profile.targetLanguage"></span> •
+                    <span x-text="profile.level"></span> level
+                </p>
+                <div class="flex items-center gap-3 mt-3">
+                    <div class="flex items-center gap-1 bg-amber-100 px-3 py-1 rounded-full">
+                        <span>🔥</span>
+                        <span class="font-bold text-amber-700 text-sm" x-text="stats.streak + ' day streak'"></span>
+                    </div>
+                    <div class="flex items-center gap-1 bg-green-100 px-3 py-1 rounded-full">
+                        <span>💬</span>
+                        <span class="font-bold text-green-700 text-sm" x-text="stats.totalConversations + ' chats'"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Daily Tip -->
+            <div x-show="dailyTip" class="bg-blue-50 border-l-4 border-blue-400 rounded-r-xl p-4 mb-5 fade-in">
+                <p class="text-sm text-blue-800"><span class="font-bold">💡 Tip:</span> <span x-text="dailyTip"></span></p>
+            </div>
+
+            <!-- Scenarios -->
+            <h3 class="text-lg font-extrabold text-gray-800 mb-3">Choose a Conversation 💬</h3>
+
+            <div class="grid gap-3 mb-6">
+                <template x-for="scenario in scenarios" :key="scenario.id">
+                    <button @click="startConversation(scenario)" class="scenario-card bg-white rounded-2xl p-4 shadow-sm border border-gray-100 text-left flex items-center gap-4 nav-btn">
+                        <div class="text-3xl w-12 h-12 flex items-center justify-center bg-green-50 rounded-xl flex-shrink-0" x-text="scenario.emoji"></div>
+                        <div class="flex-1 min-w-0">
+                            <h4 class="font-bold text-gray-800 text-sm" x-text="scenario.title"></h4>
+                            <p class="text-xs text-gray-500 truncate" x-text="scenario.description"></p>
+                        </div>
+                        <svg class="w-5 h-5 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                    </button>
+                </template>
+            </div>
+
+            <!-- Quick Practice -->
+            <h3 class="text-lg font-extrabold text-gray-800 mb-3">Quick Practice ⚡</h3>
+            <div class="grid grid-cols-2 gap-3 mb-6">
+                <button @click="startQuickPractice('vocabulary')" class="scenario-card bg-purple-50 rounded-2xl p-4 shadow-sm text-center nav-btn">
+                    <div class="text-2xl mb-1">📖</div>
+                    <div class="font-bold text-purple-800 text-sm">Vocabulary</div>
+                    <div class="text-xs text-purple-600">Family words</div>
+                </button>
+                <button @click="startQuickPractice('phrases')" class="scenario-card bg-orange-50 rounded-2xl p-4 shadow-sm text-center nav-btn">
+                    <div class="text-2xl mb-1">🗨️</div>
+                    <div class="font-bold text-orange-800 text-sm">Key Phrases</div>
+                    <div class="text-xs text-orange-600">Travel basics</div>
+                </button>
+            </div>
+        </div>
+
+        <!-- CONVERSATION VIEW -->
+        <div x-show="currentView === 'conversation'" x-transition class="flex flex-col" style="height: calc(100vh - 56px);">
+            <!-- Scenario Header -->
+            <div class="bg-white border-b px-4 py-3 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="text-xl" x-text="activeScenario?.emoji || '💬'"></span>
+                    <div>
+                        <div class="font-bold text-sm text-gray-800" x-text="activeScenario?.title || 'Conversation'"></div>
+                        <div class="text-xs text-gray-500" x-text="'Speaking ' + profile.targetLanguage"></div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button @click="showSpeedControl = !showSpeedControl" class="nav-btn p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition text-sm" title="Speed">
+                        🐢
+                    </button>
+                    <button @click="showHint = true" class="nav-btn p-2 rounded-full bg-amber-100 hover:bg-amber-200 transition text-sm" title="Hint">
+                        💡
+                    </button>
+                </div>
+            </div>
+
+            <!-- Speed Control -->
+            <div x-show="showSpeedControl" x-transition class="bg-green-50 px-4 py-3 border-b">
+                <div class="flex items-center justify-between mb-1">
+                    <span class="text-sm font-bold text-green-800">🐢 Conversation Speed</span>
+                    <span class="text-sm font-bold text-green-600" x-text="speedLabel()"></span>
+                </div>
+                <input type="range" x-model="conversationSpeed" min="1" max="3" step="1" class="w-full speed-slider">
+                <div class="flex justify-between text-xs text-green-600 mt-1">
+                    <span>Slow & Clear</span>
+                    <span>Natural</span>
+                    <span>Faster</span>
+                </div>
+            </div>
+
+            <!-- Hint Panel -->
+            <div x-show="showHint && currentHint" x-transition class="bg-amber-50 px-4 py-3 border-b">
+                <div class="flex items-start justify-between">
+                    <div>
+                        <p class="text-sm font-bold text-amber-800">💡 Helpful Hint</p>
+                        <p class="text-sm text-amber-700 mt-1" x-text="currentHint"></p>
+                    </div>
+                    <button @click="showHint = false" class="text-amber-500 nav-btn p-1">✕</button>
+                </div>
+            </div>
+
+            <!-- Chat Messages -->
+            <div x-ref="chatContainer" class="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+                <template x-for="(msg, idx) in messages" :key="idx">
+                    <div :class="msg.role === 'assistant' ? 'flex justify-start' : 'flex justify-end'" class="fade-in">
+                        <div :class="msg.role === 'assistant' ? 'chat-bubble-ai' : 'chat-bubble-user'" class="max-w-[85%] px-4 py-3 shadow-sm">
+                            <p class="text-sm leading-relaxed" x-html="formatMessage(msg.content)"></p>
+                            <div x-show="msg.translation" class="mt-2 pt-2 border-t border-gray-200">
+                                <p class="text-xs text-gray-500 italic" x-text="msg.translation"></p>
+                            </div>
+                            <div class="flex items-center gap-2 mt-1">
+                                <span class="text-[10px] text-gray-400" x-text="msg.time"></span>
+                                <button x-show="msg.role === 'assistant'" @click="speakText(msg.content)" class="text-green-600 hover:text-green-800 p-1" title="Listen">
+                                    🔊
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- Typing indicator -->
+                <div x-show="isTyping" class="flex justify-start fade-in">
+                    <div class="chat-bubble-ai px-4 py-3">
+                        <div class="typing-indicator">
+                            <span></span><span></span><span></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Suggested Responses -->
+            <div x-show="suggestedResponses.length > 0" class="px-4 py-2 bg-gray-50 border-t">
+                <p class="text-xs text-gray-500 font-bold mb-2">Try saying:</p>
+                <div class="flex flex-wrap gap-2">
+                    <template x-for="(resp, idx) in suggestedResponses" :key="idx">
+                        <button @click="sendSuggested(resp)" class="bg-white border border-green-300 text-green-700 px-3 py-2 rounded-full text-xs font-semibold hover:bg-green-50 transition nav-btn" x-text="resp"></button>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Input Area -->
+            <div class="bg-white border-t px-4 py-3">
+                <div class="flex items-end gap-2">
+                    <div class="flex-1 relative">
+                        <textarea x-model="userInput" @keydown.enter.prevent="sendMessage()" rows="1"
+                                  placeholder="Type your response here..."
+                                  class="w-full p-3 pr-10 border-2 border-green-200 rounded-xl text-sm focus:border-green-500 focus:outline-none resize-none"
+                                  style="min-height: 48px; max-height: 120px;"></textarea>
+                    </div>
+                    <button @click="sendMessage()" :disabled="!userInput.trim() || isTyping"
+                            :class="(!userInput.trim() || isTyping) ? 'bg-gray-300' : 'bg-green-600 hover:bg-green-700 active:bg-green-800'"
+                            class="nav-btn p-3 rounded-xl text-white transition shadow-md flex-shrink-0">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+                    </button>
+                </div>
+                <div class="flex items-center gap-3 mt-2">
+                    <button @click="requestTranslation()" class="text-xs text-blue-600 font-semibold hover:text-blue-800 nav-btn p-1">🔄 Translate last</button>
+                    <button @click="requestCorrection()" class="text-xs text-purple-600 font-semibold hover:text-purple-800 nav-btn p-1">✏️ Check my grammar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- QUICK PRACTICE VIEW -->
+        <div x-show="currentView === 'quickPractice'" x-transition class="px-4 py-4">
+            <div class="bg-white rounded-2xl shadow-md p-5 mb-4 text-center fade-in">
+                <div class="text-4xl mb-3" x-text="currentCard?.emoji || '📖'"></div>
+                <div class="text-2xl font-extrabold text-green-800 mb-2" x-text="currentCard?.word || ''"></div>
+                <div class="text-gray-500 text-sm mb-1" x-text="currentCard?.pronunciation || ''"></div>
+                <div x-show="showCardAnswer" class="mt-3 pt-3 border-t">
+                    <div class="text-lg font-bold text-gray-700" x-text="currentCard?.translation || ''"></div>
+                    <div class="text-sm text-gray-500 mt-1 italic" x-text="currentCard?.example || ''"></div>
+                </div>
+                <button x-show="!showCardAnswer" @click="showCardAnswer = true"
+                        class="mt-4 bg-green-600 text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-green-700 transition nav-btn">
+                    Show Answer 👀
+                </button>
+                <div x-show="showCardAnswer" class="flex gap-3 mt-4 justify-center">
+                    <button @click="rateCard('hard')" class="bg-red-100 text-red-700 px-4 py-3 rounded-xl font-bold text-sm nav-btn hover:bg-red-200">😓 Hard</button>
+                    <button @click="rateCard('okay')" class="bg-yellow-100 text-yellow-700 px-4 py-3 rounded-xl font-bold text-sm nav-btn hover:bg-yellow-200">🤔 Okay</button>
+                    <button @click="rateCard('easy')" class="bg-green-100 text-green-700 px-4 py-3 rounded-xl font-bold text-sm nav-btn hover:bg-green-200">😊 Easy!</button>
+                </div>
+            </div>
+            <div class="text-center text-sm text-gray-500">
+                Card <span x-text="cardIndex + 1"></span> of <span x-text="practiceCards.length"></span>
+            </div>
+            <div x-show="isLoadingCards" class="text-center py-8">
+                <div class="typing-indicator inline-flex"><span></span><span></span><span></span></div>
+                <p class="text-sm text-gray-500 mt-2">Preparing your practice cards...</p>
+            </div>
+        </div>
+
+        <!-- PROGRESS VIEW -->
+        <div x-show="currentView === 'progress'" x-transition class="px-4 py-4">
+            <h2 class="text-xl font-extrabold text-gray-800 mb-4">📊 My Progress</h2>
+
+            <!-- Confidence Meter -->
+            <div class="bg-white rounded-2xl shadow-md p-5 mb-4 text-center fade-in">
+                <h3 class="font-bold text-gray-700 mb-3">Speaking Confidence</h3>
+                <div class="relative inline-block">
+                    <svg width="120" height="120" viewBox="0 0 120 120">
+                        <circle cx="60" cy="60" r="50" fill="none" stroke="#E8F5E9" stroke-width="10"/>
+                        <circle cx="60" cy="60" r="50" fill="none" stroke="#4CAF50" stroke-width="10"
+                                stroke-dasharray="314" :stroke-dashoffset="314 - (314 * stats.confidence / 100)"
+                                class="progress-ring" transform="rotate(-90 60 60)" stroke-linecap="round"/>
+                    </svg>
+                    <div class="absolute inset-0 flex items-center justify-center">
+                        <span class="text-2xl font-extrabold text-green-700" x-text="stats.confidence + '%'"></span>
+                    </div>
+                </div>
+                <p class="text-sm text-gray-500 mt-2" x-text="confidenceMessage()"></p>
+            </div>
+
+            <!-- Stats Grid -->
+            <div class="grid grid-cols-2 gap-3 mb-4">
+                <div class="bg-amber-50 rounded-2xl p-4 text-center fade-in">
+                    <div class="text-2xl">🔥</div>
+                    <div class="text-2xl font-extrabold text-amber-700" x-text="stats.streak"></div>
+                    <div class="text-xs text-amber-600 font-semibold">Day Streak</div>
+                </div>
+                <div class="bg-blue-50 rounded-2xl p-4 text-center fade-in">
+                    <div class="text-2xl">💬</div>
+                    <div class="text-2xl font-extrabold text-blue-700" x-text="stats.totalConversations"></div>
+                    <div class="text-xs text-blue-600 font-semibold">Conversations</div>
+                </div>
+                <div class="bg-purple-50 rounded-2xl p-4 text-center fade-in">
+                    <div class="text-2xl">📖</div>
+                    <div class="text-2xl font-extrabold text-purple-700" x-text="stats.wordsLearned"></div>
+                    <div class="text-xs text-purple-600 font-semibold">Words Learned</div>
+                </div>
+                <div class="bg-green-50 rounded-2xl p-4 text-center fade-in">
+                    <div class="text-2xl">⏱️</div>
+                    <div class="text-2xl font-extrabold text-green-700" x-text="stats.minutesPracticed"></div>
+                    <div class="text-xs text-green-600 font-semibold">Minutes</div>
+                </div>
+            </div>
+
+            <!-- Recent Topics -->
+            <div class="bg-white rounded-2xl shadow-md p-5 mb-4 fade-in">
+                <h3 class="font-bold text-gray-700 mb-3">🏆 Completed Scenarios</h3>
+                <template x-if="stats.completedScenarios.length === 0">
+                    <p class="text-sm text-gray-400 text-center py-3">Start a conversation to track your progress!</p>
+                </template>
+                <div class="space-y-2">
+                    <template x-for="sc in stats.completedScenarios" :key="sc">
+                        <div class="flex items-center gap-2 bg-green-50 rounded-xl px-3 py-2">
+                            <span class="text-green-600">✅</span>
+                            <span class="text-sm font-semibold text-gray-700" x-text="sc"></span>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+
+        <!-- SETTINGS VIEW -->
+        <div x-show="currentView === 'settings'" x-transition class="px-4 py-4">
+            <h2 class="text-xl font-extrabold text-gray-800 mb-4">⚙️ Settings</h2>
+
+            <div class="bg-white rounded-2xl shadow-md p-5 mb-4 fade-in">
+                <label class="block text-sm font-bold text-gray-700 mb-2">👤 Your Name</label>
+                <input x-model="profile.name" @change="saveProfile()" type="text" class="w-full p-3 border-2 border-green-200 rounded-xl text-lg focus:border-green-500 focus:outline-none" />
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-md p-5 mb-4 fade-in">
+                <label class="block text-sm font-bold text-gray-700 mb-2">🌐 Target Language</label>
+                <select x-model="profile.targetLanguage" @change="saveProfile()" class="w-full p-3 border-2 border-green-200 rounded-xl text-lg focus:border-green-500 focus:outline-none bg-white">
+                    <option value="Spanish">🇪🇸 Spanish</option>
+                    <option value="French">🇫🇷 French</option>
+                    <option value="Italian">🇮🇹 Italian</option>
+                    <option value="German">🇩🇪 German</option>
+                    <option value="Portuguese">🇧🇷 Portuguese</option>
+                    <option value="Japanese">🇯🇵 Japanese</option>
+                    <option value="Mandarin">🇨🇳 Mandarin Chinese</option>
+                    <option value="Korean">🇰🇷 Korean</option>
+                    <option value="Hindi">🇮🇳 Hindi</option>
+                    <option value="Arabic">🇸🇦 Arabic</option>
+                </select>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-md p-5 mb-4 fade-in">
+                <label class="block text-sm font-bold text-gray-700 mb-2">📊 Level</label>
+                <div class="grid grid-cols-3 gap-2">
+                    <template x-for="level in ['Beginner', 'Intermediate', 'Advanced']">
+                        <button @click="profile.level = level; saveProfile()"
+                                :class="profile.level === level ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-700 border-green-200'"
+                                class="p-3 rounded-xl border-2 font-bold text-sm transition nav-btn" x-text="level">
+                        </button>
+                    </template>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-md p-5 mb-4 fade-in">
+                <label class="block text-sm font-bold text-gray-700 mb-2">🔊 Text-to-Speech</label>
+                <div class="flex items-center justify-between">
+                    <span class="text-sm text-gray-600">Enable spoken responses</span>
+                    <button @click="profile.ttsEnabled = !profile.ttsEnabled; saveProfile()"
+                            :class="profile.ttsEnabled ? 'bg-green-600' : 'bg-gray-300'"
+                            class="relative w-14 h-8 rounded-full transition nav-btn">
+                        <div :class="profile.ttsEnabled ? 'translate-x-7' : 'translate-x-1'"
+                             class="absolute top-1 w-6 h-6 bg-white rounded-full shadow transition-transform"></div>
+                    </button>
+                </div>
+            </div>
+
+            <button @click="resetApp()" class="w-full py-3 bg-red-100 text-red-700 rounded-xl font-bold text-sm hover:bg-red-200 transition nav-btn mb-4">
+                🗑️ Reset All Data
+            </button>
+        </div>
+
+    </main>
+
+    <!-- Error Toast -->
+    <div x-show="errorMessage" x-transition
+         class="fixed bottom-4 left-4 right-4 max-w-lg mx-auto bg-red-100 border border-red-300 text-red-800 rounded-2xl p-4 shadow-lg z-50">
+        <div class="flex items-start gap-2">
+            <span class="text-lg">⚠️</span>
+            <div class="flex-1">
+                <p class="text-sm font-semibold" x-text="errorMessage"></p>
+            </div>
+            <button @click="errorMessage = ''" class="text-red-500 font-bold nav-btn p-1">✕</button>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div x-show="isGlobalLoading" class="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
+        <div class="bg-white rounded-2xl p-6 shadow-xl text-center">
+            <div class="typing-indicator inline-flex mb-3"><span></span><span></span><span></span></div>
+            <p class="text-sm text-gray-600 font-semibold" x-text="loadingMessage"></p>
+        </div>
+    </div>
+
+    <script>
+        // Global AI tracking variables
+        window.aiTotalInputTokens = 0;
+        window.aiTotalOutputTokens = 0;
+        window.aiTotalTime = 0;
+        window.aiTimeByAlias = {};
+
+        function app() {
+            return {
+                currentView: 'home',
+                profile: {
+                    name: '',
+                    targetLanguage: 'Spanish',
+                    level: 'Beginner',
+                    reasons: [],
+                    ttsEnabled: true
+                },
+                stats: {
+                    streak: 0,
+                    totalConversations: 0,
+                    wordsLearned: 0,
+                    minutesPracticed: 0,
+                    confidence: 25,
+                    completedScenarios: [],
+                    lastPracticeDate: null
+                },
+                scenarios: [
+                    { id: 'grandchild_call', emoji: '📞', title: 'Video Call with Grandchild', description: 'Practice chatting about school, hobbies, and daily life' },
+                    { id: 'family_dinner', emoji: '🍽️', title: 'Family Dinner Conversation', description: 'Talk about recipes, family stories, and memories' },
+                    { id: 'airport', emoji: '✈️', title: 'At the Airport', description: 'Navigate check-in, customs, and finding your gate' },
+                    { id: 'restaurant', emoji: '🍕', title: 'Ordering at a Restaurant', description: 'Read menus, order food, and chat with the waiter' },
+                    { id: 'market', emoji: '🛒', title: 'Shopping at the Market', description: 'Buy groceries, ask prices, and haggle friendly' },
+                    { id: 'doctor', emoji: '🏥', title: 'At the Doctor\'s Office', description: 'Describe symptoms and understand instructions' },
+                    { id: 'recipe', emoji: '👩‍🍳', title: 'Sharing a Family Recipe', description: 'Teach your grandchild your famous recipe' },
+                    { id: 'photo_album', emoji: '📸', title: 'Looking at Photo Albums', description: 'Describe family memories and tell stories' },
+                    { id: 'hotel', emoji: '🏨', title: 'Checking into a Hotel', description: 'Book a room, ask about amenities, and get directions' },
+                    { id: 'birthday', emoji: '🎂', title: 'Birthday Party', description: 'Celebrate, give gifts, and sing happy birthday' },
+                ],
+                activeScenario: null,
+                messages: [],
+                userInput: '',
+                isTyping: false,
+                isGlobalLoading: false,
+                loadingMessage: 'Loading...',
+                errorMessage: '',
+                showSpeedControl: false,
+                conversationSpeed: 2,
+                showHint: false,
+                currentHint: '',
+                suggestedResponses: [],
+                dailyTip: '',
+                conversationStartTime: null,
+
+                // Quick Practice
+                practiceCards: [],
+                cardIndex: 0,
+                currentCard: null,
+                showCardAnswer: false,
+                isLoadingCards: false,
+                quickPracticeType: '',
+
+                init() {
+                    this.loadProfile();
+                    this.loadStats();
+                    if (!this.profile.name) {
+                        this.currentView = 'onboarding';
+                    } else {
+                        this.updateStreak();
+                        this.loadDailyTip();
+                    }
+                },
+
+                loadProfile() {
+                    try {
+                        const saved = localStorage.getItem('grandspeak_profile');
+                        if (saved) this.profile = JSON.parse(saved);
+                    } catch(e) {}
+                },
+
+                saveProfile() {
+                    localStorage.setItem('grandspeak_profile', JSON.stringify(this.profile));
+                },
+
+                loadStats() {
+                    try {
+                        const saved = localStorage.getItem('grandspeak_stats');
+                        if (saved) this.stats = {...this.stats, ...JSON.parse(saved)};
+                    } catch(e) {}
+                },
+
+                saveStats() {
+                    localStorage.setItem('grandspeak_stats', JSON.stringify(this.stats));
+                },
+
+                updateStreak() {
+                    const today = new Date().toDateString();
+                    const lastDate = this.stats.lastPracticeDate;
+                    if (lastDate) {
+                        const yesterday = new Date();
+                        yesterday.setDate(yesterday.getDate() - 1);
+                        if (lastDate === today) {
+                            // already practiced today
+                        } else if (lastDate === yesterday.toDateString()) {
+                            // streak continues
+                        } else {
+                            this.stats.streak = 0;
+                        }
+                    }
+                    this.saveStats();
+                },
+
+                toggleReason(reason) {
+                    const idx = this.profile.reasons.indexOf(reason);
+                    if (idx >= 0) this.profile.reasons.splice(idx, 1);
+                    else this.profile.reasons.push(reason);
+                },
+
+                completeOnboarding() {
+                    this.saveProfile();
+                    this.currentView = 'home';
+                    this.loadDailyTip();
+                },
+
+                goHome() {
+                    if (this.currentView === 'conversation' && this.messages.length > 2) {
+                        this.endConversation();
+                    }
+                    this.currentView = 'home';
+                },
+
+                subtitleText() {
+                    if (this.currentView === 'conversation') return this.activeScenario?.title || 'Conversation';
+                    if (this.currentView === 'progress') return 'My Progress';
+                    if (this.currentView === 'settings') return 'Settings';
+                    if (this.currentView === 'quickPractice') return 'Quick Practice';
+                    return 'Language Trainer for Grandparents';
+                },
+
+                speedLabel() {
+                    return ['', 'Slow & Clear', 'Natural', 'Faster'][this.conversationSpeed];
+                },
+
+                confidenceMessage() {
+                    const c = this.stats.confidence;
+                    if (c < 30) return "You're just getting started — every conversation counts! 🌱";
+                    if (c < 50) return "Great progress! Keep chatting to build confidence! 💪";
+                    if (c < 75) return "You're doing wonderfully! Almost there! 🌟";
+                    return "Amazing confidence! You're a natural! 🏆";
+                },
+
+                formatMessage(content) {
+                    return content.replace(/\*\*(.*?)\*\*/g, '<strong class="text-green-800">$1</strong>')
+                                  .replace(/\n/g, '<br>');
+                },
+
+                async callAI(prompt, retries = 3) {
+                    const startTime = Date.now();
+                    for (let i = 0; i < retries; i++) {
+                        try {
+                            const response = await fetch('https://16504442930.work/run_prompt', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    alias: 'genericAI',
+                                    params: { prompt }
+                                })
+                            });
+                            if (!response.ok) {
+                                const errText = await response.text();
+                                if (i === retries - 1) {
+                                    const friendlyErr = await this.formatError(errText);
+                                    throw new Error(friendlyErr);
+                                }
+                                continue;
+                            }
+                            const data = await response.json();
+                            const elapsed = Date.now() - startTime;
+                            window.aiTotalTime += elapsed;
+                            window.aiTimeByAlias['genericAI'] = (window.aiTimeByAlias['genericAI'] || 0) + elapsed;
+                            if (data.input_tokens) window.aiTotalInputTokens += data.input_tokens;
+                            if (data.output_tokens) window.aiTotalOutputTokens += data.output_tokens;
+                            return data;
+                        } catch (e) {
+                            if (i === retries - 1) {
+                                this.errorMessage = e.message || 'Something went wrong. Please try again.';
+                                throw e;
+                            }
+                        }
+                    }
+                },
+
+                async formatError(errText) {
+                    try {
+                        const resp = await fetch('https://16504442930.work/run_prompt', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                alias: 'genericAI',
+                                params: {
+                                    prompt: `Reformat this error message to be user-friendly, empowering the user to fix the issue. Include the full original error. Return a JSON object with exactly this structure: {"friendly_message": string}. Original error: ${errText}`
+                                }
+                            })
+                        });
+                        const data = await resp.json();
+                        return data.friendly_message || 'Something went wrong. Please try again in a moment.';
+                    } catch {
+                        return 'We encountered an issue. Please try again in a moment. Details: ' + errText;
+                    }
+                },
+
+                async loadDailyTip() {
+                    try {
+                        const data = await this.callAI(
+                            `You are a friendly language learning coach for older adults learning ${this.profile.targetLanguage}. Generate one short, encouraging daily tip (1-2 sentences) about language learning that's relevant to someone who is ${this.profile.level} level and wants to ${this.profile.reasons.join(', ') || 'learn a new language'}. Return a JSON object with exactly this structure: {"tip": string}. The tip should be warm, encouraging, and practical.`
+                        );
+                        this.dailyTip = data.tip || '';
+                    } catch (e) {
+                        this.dailyTip = "Practice a little every day — even 5 minutes of conversation helps build confidence! 🌟";
+                    }
+                },
+
+                async startConversation(scenario) {
+                    this.activeScenario = scenario;
+                    this.messages = [];
+                    this.suggestedResponses = [];
+                    this.currentHint = '';
+                    this.showHint = false;
+                    this.showSpeedControl = false;
+                    this.currentView = 'conversation';
+                    this.conversationStartTime = Date.now();
+                    this.isTyping = true;
+
+                    const speedInstruction = this.conversationSpeed === 1
+                        ? 'Use very simple, short sentences. Speak slowly and clearly. Use basic vocabulary only.'
+                        : this.conversationSpeed === 3
+                        ? 'Use natural, flowing sentences at a normal conversational pace.'
+                        : 'Use clear, moderately-paced sentences with common vocabulary.';
+
+                    const prompt = `You are a warm, patient conversation partner helping ${this.profile.name || 'a grandparent'} practice ${this.profile.targetLanguage}. They are at the ${this.profile.level} level.
+
+SCENARIO: "${scenario.title}" - ${scenario.description}
+
+PACING: ${speedInstruction}
+
+Start the conversation by setting the scene in English (1 brief sentence), then speak your first line in ${this.profile.targetLanguage} followed by the English translation in parentheses. Be warm and encouraging. Use culturally appropriate greetings.
+
+Also provide a hint for how the learner might respond and 3 short suggested responses in ${this.profile.targetLanguage}.
+
+Return a JSON object with exactly this structure:
+{
+    "message": string (your opening message mixing target language with English translations in parentheses),
+    "hint": string (a helpful tip for responding in English),
+    "suggestions": [string, string, string] (3 short suggested responses in ${this.profile.targetLanguage})
+}`;
+
+                    try {
+                        const data = await this.callAI(prompt);
+                        this.messages.push({
+                            role: 'assistant',
+                            content: data.message || 'Hello! Let\'s begin our conversation.',
+                            time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+                            translation: ''
+                        });
+                        this.currentHint = data.hint || '';
+                        this.suggestedResponses = data.suggestions || [];
+                    } catch (e) {
+                        this.messages.push({
+                            role: 'assistant',
+                            content: `Let's practice a conversation about "${scenario.title}"! Try saying hello in ${this.profile.targetLanguage}. 😊`,
+                            time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+                            translation: ''
+                        });
+                    }
+                    this.isTyping = false;
+                    this.scrollChat();
+                },
+
+                async sendMessage() {
+                    const text = this.userInput.trim();
+                    if (!text || this.isTyping) return;
+
+                    this.userInput = '';
+                    this.messages.push({
+                        role: 'user',
+                        content: text,
+                        time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+                        translation: ''
+                    });
+                    this.suggestedResponses = [];
+                    this.scrollChat();
+                    this.isTyping = true;
+
+                    const speedInstruction = this.conversationSpeed === 1
+                        ? 'Use very simple, short sentences. Basic vocabulary only. Include pronunciation guides.'
+                        : this.conversationSpeed === 3
+                        ? 'Use natural, flowing sentences.'
+                        : 'Use clear, moderately-paced sentences.';
+
+                    const conversationHistory = this.messages.map(m => `${m.role === 'user' ? 'Learner' : 'Partner'}: ${m.content}`).join('\n');
+
+                    const prompt = `You are a warm, patient conversation partner helping ${this.profile.name || 'a grandparent'} practice ${this.profile.targetLanguage} at the ${this.profile.level} level.
+
+SCENARIO: "${this.activeScenario?.title}"
+PACING: ${speedInstruction}
+
+CONVERSATION SO FAR:
+${conversationHistory}
+
+Continue the conversation naturally. Respond in ${this.profile.targetLanguage} with English translations in parentheses. If the learner made mistakes, gently correct them in a supportive way. Keep the scenario going and be encouraging.
+
+Provide a new hint and 3 new suggested responses.
+
+Return a JSON object with exactly this structure:
+{
+    "message": string (your response mixing target language with English translations in parentheses),
+    "hint": string (a helpful tip for the next response),
+    "suggestions": [string, string, string] (3 short suggested responses in ${this.profile.targetLanguage}),
+    "correction": string or null (gentle correction if the learner made a mistake, otherwise null),
+    "new_words_count": number (how many new vocabulary words were introduced, 0-3)
+}`;
+
+                    try {
+                        const data = await this.callAI(prompt);
+
+                        let fullMessage = data.message || 'That was great! Keep going! 😊';
+                        if (data.correction) {
+                            fullMessage = `✏️ *Small note:* ${data.correction}\n\n${fullMessage}`;
+                        }
+
+                        this.messages.push({
+                            role: 'assistant',
+                            content: fullMessage,
+                            time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+                            translation: ''
+                        });
+                        this.currentHint = data.hint || '';
+                        this.suggestedResponses = data.suggestions || [];
+
+                        // Update stats
+                        if (data.new_words_count) {
+                            this.stats.wordsLearned += data.new_words_count;
+                        }
+                    } catch (e) {
+                        this.messages.push({
+                            role: 'assistant',
+                            content: 'Great effort! Let\'s keep the conversation going. Try another response! 😊',
+                            time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+                            translation: ''
+                        });
+                    }
+
+                    this.isTyping = false;
+                    this.scrollChat();
+                },
+
+                sendSuggested(text) {
+                    this.userInput = text;
+                    this.sendMessage();
+                },
+
+                async requestTranslation() {
+                    const lastAssistantMsg = [...this.messages].reverse().find(m => m.role === 'assistant');
+                    if (!lastAssistantMsg || lastAssistantMsg.translation) return;
+
+                    try {
+                        const data = await this.callAI(
+                            `Translate the following text fully into English. The text may contain a mix of ${this.profile.targetLanguage} and English. Provide only the English translation. Return a JSON object with exactly this structure: {"translation": string}. Text: "${lastAssistantMsg.content}"`
+                        );
+                        lastAssistantMsg.translation = data.translation || 'Translation unavailable';
+                    } catch(e) {
+                        lastAssistantMsg.translation = 'Translation unavailable — try again.';
+                    }
+                    this.scrollChat();
+                },
+
+                async requestCorrection() {
+                    const lastUserMsg = [...this.messages].reverse().find(m => m.role === 'user');
+                    if (!lastUserMsg) return;
+
+                    this.isTyping = true;
+                    try {
+                        const data = await this.callAI(
+                            `You are a gentle, encouraging ${this.profile.targetLanguage} teacher for an older adult at the ${this.profile.level} level. Check the following text for grammar and vocabulary correctness in ${this.profile.targetLanguage}. If there are mistakes, explain them warmly and provide the corrected version. If it's correct, praise the learner. Return a JSON object with exactly this structure: {"feedback": string, "corrected_text": string or null, "is_correct": boolean}. Text to check: "${lastUserMsg.content}"`
+                        );
+
+                        let feedbackMsg = data.is_correct
+                            ? `✅ **Perfect!** ${data.feedback}`
+                            : `✏️ ${data.feedback}${data.corrected_text ? '\n\n**Corrected:** ' + data.corrected_text : ''}`;
+
+                        this.messages.push({
+                            role: 'assistant',
+                            content: feedbackMsg,
+                            time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+                            translation: ''
+                        });
+
+                        if (data.is_correct && this.stats.confidence < 95) {
+                            this.stats.confidence = Math.min(95, this.stats.confidence + 2);
+                        }
+                    } catch(e) {
+                        this.messages.push({
+                            role: 'assistant',
+                            content: 'I couldn\'t check that right now — but keep practicing! 💪',
+                            time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+                            translation: ''
+                        });
+                    }
+                    this.isTyping = false;
+                    this.scrollChat();
+                },
+
+                endConversation() {
+                    if (this.conversationStartTime) {
+                        const minutes = Math.max(1, Math.round((Date.now() - this.conversationStartTime) / 60000));
+                        this.stats.minutesPracticed += minutes;
+                    }
+                    this.stats.totalConversations++;
+                    if (this.activeScenario && !this.stats.completedScenarios.includes(this.activeScenario.title)) {
+                        this.stats.completedScenarios.push(this.activeScenario.title);
+                    }
+                    if (this.stats.confidence < 90) {
+                        this.stats.confidence = Math.min(90, this.stats.confidence + 3);
+                    }
+                    const today = new Date().toDateString();
+                    if (this.stats.lastPracticeDate !== today) {
+                        this.stats.streak++;
+                        this.stats.lastPracticeDate = today;
+                    }
+                    this.saveStats();
+                },
+
+                speakText(text) {
+                    if (!this.profile.ttsEnabled) return;
+                    // Strip markdown and parenthetical translations for TTS
+                    const cleanText = text.replace(/\*\*(.*?)\*\*/g, '$1')
+                                         .replace(/\(([^)]*)\)/g, '')
+                                         .replace(/✏️|✅|💡|🔊/g, '')
+                                         .trim();
+                    if ('speechSynthesis' in window) {
+                        window.speechSynthesis.cancel();
+                        const utterance = new SpeechSynthesisUtterance(cleanText);
+                        const langMap = {
+                            'Spanish': 'es-ES', 'French': 'fr-FR', 'Italian': 'it-IT',
+                            'German': 'de-DE', 'Portuguese': 'pt-BR', 'Japanese': 'ja-JP',
+                            'Mandarin': 'zh-CN', 'Korean': 'ko-KR', 'Hindi': 'hi-IN', 'Arabic': 'ar-SA'
+                        };
+                        utterance.lang = langMap[this.profile.targetLanguage] || 'en-US';
+                        utterance.rate = [0, 0.6, 0.85, 1.0][this.conversationSpeed] || 0.85;
+                        window.speechSynthesis.speak(utterance);
+                    }
+                },
+
+                async startQuickPractice(type) {
+                    this.quickPracticeType = type;
+                    this.practiceCards = [];
+                    this.cardIndex = 0;
+                    this.showCardAnswer = false;
+                    this.isLoadingCards = true;
+                    this.currentView = 'quickPractice';
+
+                    const topicContext = type === 'vocabulary'
+                        ? 'family-related vocabulary (grandchildren, family members, home, cooking, celebrations, emotions, endearments)'
+                        : 'essential travel phrases (greetings, directions, ordering food, asking for help, polite expressions, shopping)';
+
+                    const prompt = `Generate 8 ${this.profile.targetLanguage} ${type === 'vocabulary' ? 'vocabulary words' : 'useful phrases'} for an older adult at the ${this.profile.level} level. Focus on ${topicContext}.
+
+Return a JSON object with exactly this structure:
+{
+    "cards": [
+        {
+            "word": string (the word/phrase in ${this.profile.targetLanguage}),
+            "pronunciation": string (simple phonetic pronunciation guide),
+            "translation": string (English translation),
+            "example": string (a short example sentence in ${this.profile.targetLanguage} with English in parentheses),
+            "emoji": string (a single relevant emoji)
+        }
+    ]
+}
+
+Make the cards progressively slightly harder. Use warm, family-oriented or travel-oriented contexts.`;
+
+                    try {
+                        const data = await this.callAI(prompt);
+                        this.practiceCards = data.cards || [];
+                        if (this.practiceCards.length > 0) {
+                            this.currentCard = this.practiceCards[0];
+                        }
+                    } catch (e) {
+                        this.practiceCards = [{
+                            word: 'Hola', pronunciation: 'OH-lah', translation: 'Hello',
+                            example: '¡Hola, mi amor! (Hello, my love!)', emoji: '👋'
+                        }];
+                        this.currentCard = this.practiceCards[0];
+                    }
+                    this.isLoadingCards = false;
+                },
+
+                rateCard(rating) {
+                    if (rating === 'easy') {
+                        this.stats.wordsLearned++;
+                        if (this.stats.confidence < 95) this.stats.confidence = Math.min(95, this.stats.confidence + 1);
+                    }
+                    this.cardIndex++;
+                    if (this.cardIndex < this.practiceCards.length) {
+                        this.currentCard = this.practiceCards[this.cardIndex];
+                        this.showCardAnswer = false;
+                    } else {
+                        // Done with cards
+                        this.stats.totalConversations++;
+                        const today = new Date().toDateString();
+                        if (this.stats.lastPracticeDate !== today) {
+                            this.stats.streak++;
+                            this.stats.lastPracticeDate = today;
+                        }
+                        this.stats.minutesPracticed += 3;
+                        this.saveStats();
+                        this.currentView = 'home';
+                        this.errorMessage = '';
+                        // Show a success message briefly
+                        this.errorMessage = '';
+                        alert('🎉 Great practice session! You reviewed ' + this.practiceCards.length + ' cards!');
+                    }
+                    this.saveStats();
+                },
+
+                scrollChat() {
+                    this.$nextTick(() => {
+                        if (this.$refs.chatContainer) {
+                            this.$refs.chatContainer.scrollTop = this.$refs.chatContainer.scrollHeight;
+                        }
+                    });
+                },
+
+                resetApp() {
+                    if (confirm('Are you sure you want to reset all data? This cannot be undone.')) {
+                        localStorage.removeItem('grandspeak_profile');
+                        localStorage.removeItem('grandspeak_stats');
+                        location.reload();
+                    }
+                }
+            };
+        }
+    </script>
+</body>
+</html>
